@@ -638,13 +638,38 @@ const CreateSocialPost = () => {
       return
     }
 
+    // Validate content length before API call
+    const trimmedContent = formData.content.trim()
+    if (trimmedContent.length < 10) {
+      toast.error('Content must be at least 10 characters long')
+      return
+    }
+    
+    if (trimmedContent.length > 1000) {
+      toast.error('Content must be 1000 characters or less')
+      return
+    }
+
     try {
       setTextGenerating(true)
       
+      // Map platform IDs to platform names for backend compatibility
+      const platformNames = formData.platforms.map(platformId => {
+        const platform = platforms.find(p => p.id === platformId)
+        return platform ? platform.name.toLowerCase() : platformId
+      })
+      
+      console.log('Sending rephrase request:', {
+        content: trimmedContent,
+        tone: 'professional',
+        platforms: platformNames,
+        variations: 3
+      })
+      
       const result = await rephraseTextContent(
-        formData.content, 
+        trimmedContent, 
         'professional', 
-        formData.platforms, 
+        platformNames, 
         3
       )
       
@@ -653,11 +678,19 @@ const CreateSocialPost = () => {
         setTextGenerationModal(true)
         toast.success('Content rephrased successfully using AI!')
       } else {
-        throw new Error(result.error)
+        console.error('Rephrase API Error:', result.error)
+        throw new Error(result.error || 'Failed to rephrase content')
       }
     } catch (error) {
       console.error('Text Rephrase Error:', error)
-      toast.error('Failed to rephrase content. Please try again.')
+      // Provide more specific error messages
+      if (error.message.includes('Validation failed')) {
+        toast.error('Content validation failed. Please check your input and try again.')
+      } else if (error.message.includes('AI service')) {
+        toast.error('AI service is currently unavailable. Please try again later.')
+      } else {
+        toast.error('Failed to rephrase content. Please try again.')
+      }
     } finally {
       setTextGenerating(false)
     }

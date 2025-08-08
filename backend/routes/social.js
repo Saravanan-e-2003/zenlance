@@ -520,9 +520,20 @@ router.post('/rephrase-content',
       .withMessage('Variations must be between 1 and 5')
   ],
   catchAsync(async (req, res) => {
+    // Debug logging
+    console.log('Rephrase request received:', {
+      body: req.body,
+      contentLength: req.body.content?.length,
+      trimmedContentLength: req.body.content?.trim()?.length,
+      platforms: req.body.platforms,
+      tone: req.body.tone,
+      variations: req.body.variations
+    });
+    
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',

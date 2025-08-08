@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
+import Counter from './Counter.js';
 
 const invoiceSchema = new mongoose.Schema({
   // Basic Information
   invoiceNumber: {
     type: String,
-    required: [true, 'Invoice number is required'],
     unique: true,
     trim: true,
     maxlength: [50, 'Invoice number cannot exceed 50 characters']
@@ -280,21 +280,38 @@ invoiceSchema.virtual('formattedTotal').get(function() {
 
 // Pre-save middleware
 invoiceSchema.pre('save', async function(next) {
-  // Generate invoice number if not provided
+    // Generate invoice number if not provided
   if (!this.invoiceNumber) {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const count = await this.constructor.countDocuments({
-      createdBy: this.createdBy,
-      issueDate: {
-        $gte: new Date(date.getFullYear(), date.getMonth(), 1),
-        $lt: new Date(date.getFullYear(), date.getMonth() + 1, 1)
-      }
-    });
-    const sequential = (count + 1).toString().padStart(3, '0');
-    this.invoiceNumber = `INV-${year}${month}-${sequential}`;
+    try {
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const counterId = `invoice-${year}${month}`;
+      
+      // Use atomic counter to get next sequence number
+      const sequence = await Counter.getNextSequence(counterId);
+      this.invoiceNumber = `INV-${year}${month}-${sequence.toString().padStart(3, '0')}`;
+      
+      console.log('✅ Generated invoice number:', this.invoiceNumber);
+    } catch (error) {
+      console.error('❌ Error generating invoice number:', error);
+      // Emergency fallback with high uniqueness - include microseconds and random string
+      const timestamp = Date.now();
+      const microseconds = process.hrtime.bigint().toString().slice(-6);
+      const randomSuffix = Math.random().toString(36).substring(2, 10).toUpperCase();
+      this.invoiceNumber = `INV-EMERGENCY-${timestamp}-${microseconds}-${randomSuffix}`;
+      console.log('🆘 Using emergency fallback invoice number:', this.invoiceNumber);
+    }
   }
+    
+    // Ensure invoiceNumber is always set (should never reach here)
+    if (!this.invoiceNumber) {
+      const timestamp = Date.now();
+      const microseconds = process.hrtime.bigint().toString().slice(-6);
+      const randomSuffix = Math.random().toString(36).substring(2, 10).toUpperCase();
+      this.invoiceNumber = `INV-FINAL-FALLBACK-${timestamp}-${microseconds}-${randomSuffix}`;
+      console.log('🚨 Using final fallback invoice number (this should not happen):', this.invoiceNumber);
+    }
 
   // Calculate amounts
   this.calculateAmounts();

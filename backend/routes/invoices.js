@@ -212,6 +212,7 @@ router.post('/', authenticate, [
 
   const invoice = new Invoice(invoiceData);
   await invoice.save();
+  console.log('✅ Invoice saved successfully with number:', invoice.invoiceNumber);
 
   await invoice.populate('clientId', 'firstName lastName company email');
 

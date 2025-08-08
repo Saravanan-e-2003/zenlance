@@ -147,6 +147,7 @@ router.post('/generate', generateProposalValidation, catchAsync(async (req, res)
   });
 
   await proposal.save();
+  console.log('✅ Proposal saved successfully with number:', proposal.proposalNumber);
 
   // Generate PDF
   try {

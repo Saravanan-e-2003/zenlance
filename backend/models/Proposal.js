@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import Counter from './Counter.js';
 
 const proposalSchema = new mongoose.Schema({
   // Link to Lead
@@ -133,18 +134,23 @@ const proposalSchema = new mongoose.Schema({
 // Generate proposal number
 proposalSchema.pre('save', async function(next) {
   if (!this.proposalNumber) {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const count = await this.constructor.countDocuments({
-      createdBy: this.createdBy,
-      createdAt: {
-        $gte: new Date(date.getFullYear(), date.getMonth(), 1),
-        $lt: new Date(date.getFullYear(), date.getMonth() + 1, 1)
-      }
-    });
-    const sequential = (count + 1).toString().padStart(3, '0');
-    this.proposalNumber = `PROP-${year}${month}-${sequential}`;
+    try {
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const counterId = `proposal-${year}${month}`;
+      
+      // Use atomic counter to get next sequence number
+      const sequence = await Counter.getNextSequence(counterId);
+      this.proposalNumber = `PROP-${year}${month}-${sequence.toString().padStart(3, '0')}`;
+      
+      console.log('✅ Generated proposal number:', this.proposalNumber);
+    } catch (error) {
+      console.error('❌ Error generating proposal number:', error);
+      // Emergency fallback
+      const timestamp = Date.now().toString();
+      this.proposalNumber = `PROP-TEMP-${timestamp}`;
+    }
   }
   next();
 });
