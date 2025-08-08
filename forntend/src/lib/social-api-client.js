@@ -489,12 +489,18 @@ export const generateSampleImages = async (content, style = 'realistic') => {
 // Rephrase existing content using Azure OpenAI backend
 export const rephraseTextContent = async (content, tone = 'professional', platforms = [], variations = 3) => {
   try {
-    const response = await apiClient.post('/social/rephrase-content', {
+    const requestData = {
       content: content.trim(),
       tone,
       platforms,
       variations
-    })
+    }
+    
+    console.log('Rephrase API Request:', requestData)
+    
+    const response = await apiClient.post('/social/rephrase-content', requestData)
+    
+    console.log('Rephrase API Response:', response.data)
     
     // Extract just the content strings for compatibility with existing frontend
     const rephrrasedTexts = response.data.data.map(variation => variation.content)
@@ -506,9 +512,29 @@ export const rephraseTextContent = async (content, tone = 'professional', platfo
     }
   } catch (error) {
     console.error('Text Rephrase Error:', error)
+    console.error('Error Response:', error.response?.data)
+    console.error('Error Status:', error.response?.status)
+    
+    // Extract detailed error information
+    let errorMessage = 'Unknown error occurred'
+    
+    if (error.response?.data) {
+      const errorData = error.response.data
+      if (errorData.message) {
+        errorMessage = errorData.message
+      }
+      if (errorData.errors && Array.isArray(errorData.errors)) {
+        // Format validation errors
+        const validationErrors = errorData.errors.map(err => err.msg).join(', ')
+        errorMessage = `Validation failed: ${validationErrors}`
+      }
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
     return {
       success: false,
-      error: error.response?.data?.message || error.message
+      error: errorMessage
     }
   }
 }
